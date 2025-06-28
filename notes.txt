@@ -1,0 +1,110 @@
+Packages installed are 
+express => core framework for building the API 
+bcrypt for hasing passwords before storing them
+cookie-parser => 
+cors for enabling cross origin resource sharing 
+helmet to improve security by setting various http headers
+joi for validations of user inouts
+jsonwebtokens
+mongoose
+
+
+===============================================================================================
+ "scripts": {
+  "start": "node --env-file=.env index.js",
+  "dev": "nodemon --trace-warnings --env-file=.env index.js"
+},
+mention these scripts in the scripts of package.json file
+
+start => tells the node to run index.js and read environement variables from .env (--env-file=.env) this is for production server
+dev=> tells the node to run index.js and read environement variables from .env(--env-file=.env) this is for development
+also the --watch --trace-warnings tells node to automatically restart the server as soon as we make changes
+basically instead of nodemon we do this
+==============================================================================================================================================
+
+User Schema 
+const { verify } = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
+const userSchema = new Schema({
+    email:{
+        type:String,
+        require:[true,'Email is Required'],
+        trim:true,
+        unique:[true,'email must be unique'],
+        minLength:[5,'atleast 5 characters'],
+        lowercase:true,
+    },
+    password:{
+        type:String,
+        required:[true,'password is required'],
+        trim:true,
+        minLength:[8,'atleast 8 characters'],
+        select:false
+    },
+    verified:{
+        type:Boolean,
+        default:false,
+    },
+    verificationCodeValidation:{
+        type:Number,
+        select:false,
+
+    },
+    forgotPasswordCode:{
+        type:String,
+        select:false
+    },
+    forgotPasswordCodeValidation:{
+        type:Number,
+        select:false
+    }
+},{
+    timestamps:true // will automatically keep track when created and updated
+});
+
+module.exports = mongoose.model('User',userSchema);
+
+Posts Schema 
+const { required } = require('joi');
+const mongoose = require('mongoose');
+const postSchema = mongoose.Schema({
+    title: {
+        type: String,
+        required: [true, 'title is required'],
+        trim: true
+    },
+    description: {
+        type: String,
+        required: [true, 'description is required'],
+        trim: true
+    },
+    userId: { // this is how foreign key is created
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+    }
+}, {
+    timestamps: true
+}
+);
+
+module.exports = mongoose.model('Post',postSchema);
+==================================================================================
+Joi returns an object for an input field when it is invalidated
+const {error,value} = signupSchema.validate({email,password});
+
+{
+  details: [
+    {
+      message: '"email" is required',
+      path: ['email'],
+      type: 'any.required',
+      context: [Object]
+    },
+    ...
+  ]
+}
+so return res.status(401).json({
+    message:error.details[0].message
+})
