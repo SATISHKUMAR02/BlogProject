@@ -1,4 +1,4 @@
-const { signupSchema } = require("../middlewares/validator");
+const { signupSchema, changePasswordSchema } = require("../middlewares/validator");
 const User = require('../models/usersModel');
 const jwt = require('jsonwebtoken');
 const { dohash, doHashvalidation, hmacProcess } = require("../utils/hashing");
@@ -116,27 +116,27 @@ exports.sendVerificationCode = async (req, res) => {
                 message: 'already verified '
             })
         }
-        const code = Math.floor(Math.random()*100000).toString();
+        const code = Math.floor(Math.random() * 100000).toString();
         let info = await transport.sendMail({
-            from:process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
-            to:exuser.email,
-            subject:"verification code",
-            html:'<h1>'+code+'</h1>'
+            from: process.env.NODE_CODE_SENDING_EMAIL_ADDRESS,
+            to: exuser.email,
+            subject: "verification code",
+            html: '<h1>' + code + '</h1>'
 
         })
-        if(info.accepted[0] === exuser.email){
-            const hashcodedvalue = hmacProcess(code,process.env.HMAC_VERIFICATION_CODE_SECRET)
+        if (info.accepted[0] === exuser.email) {
+            const hashcodedvalue = hmacProcess(code, process.env.HMAC_VERIFICATION_CODE_SECRET)
             exuser.verificationCode = hashcodedvalue;
             exuser.verificationCodeValidation = Date.now();
             await exuser.save();
             return res.status(200).json({
-                success:true,
-                message:'verification code sent to email'
+                success: true,
+                message: 'verification code sent to email'
             })
         }
         return res.status(400).json({
-            success:false,
-            message:'failed'
+            success: false,
+            message: 'failed'
         })
     } catch (error) {
         console.log(error)
@@ -144,68 +144,113 @@ exports.sendVerificationCode = async (req, res) => {
 
 }
 
-exports.verifyVerificationCode =async(req,res)=>{
-    const {email,providedCode} =req.body;
-    try{
-        const {error,value}= acceptCodeSchema.validate({
-            email,providedCode
+exports.verifyVerificationCode = async (req, res) => {
+    const { email, providedCode } = req.body;
+    try {
+        const { error, value } = acceptCodeSchema.validate({
+            email, providedCode
         })
-        if(error){
+        if (error) {
             return res.status(400).json({
-                success:false,
-                message:error.details[0].message
-            });            
+                success: false,
+                message: error.details[0].message
+            });
         }
         const codedValue = providedCode.toString();
-        const exuser = await User.findOne({email}).select(
+        const exuser = await User.findOne({ email }).select(
             "verificationCodeValidation");
-        if(!exuser){
+        if (!exuser) {
             return res.send(400).json({
-                success:false,
-                message:'no user found'
+                success: false,
+                message: 'no user found'
             })
         }
-        if(exuser.verified){
+        if (exuser.verified) {
             return res.status(400).json({
-                success:false,
-                message:'already user veridied'
+                success: false,
+                message: 'already user veridied'
             })
         }
-        if(!exuseruser.verificationCode || !exuser.verificationCodeValidation){
+        if (!exuseruser.verificationCode || !exuser.verificationCodeValidation) {
             return res.status(400).json({
-                success:false,
-                message:'something wrong with the code'
+                success: false,
+                message: 'something wrong with the code'
             })
         }
-        if(Date.now() - exuser.verificationCodeValidation > 5*60*1000){
+        if (Date.now() - exuser.verificationCodeValidation > 5 * 60 * 1000) {
             return res.status(400).json({
-                success:false,
-                message:'code has been expired'
+                success: false,
+                message: 'code has been expired'
             })
         }
-        const hasedCodeValue = hmacProcess(codedValue,process.env.HMAC_VERIFICATION_CODE_SECRET);
+        const hasedCodeValue = hmacProcess(codedValue, process.env.HMAC_VERIFICATION_CODE_SECRET);
 
-        if(hasedCodeValue===exuser.verificationCode){
+        if (hasedCodeValue === exuser.verificationCode) {
             exuser.verified = true;
             exuser.verificationCode = undefined;
-            exuser.verificationCodeValidation=undefined;
+            exuser.verificationCodeValidation = undefined;
             await exuser.save();
             return res.status(200).json({
-                success:true,
-                message:'your account has been verified'
+                success: true,
+                message: 'your account has been verified'
             })
         }
         return res.status(400).json({
-            success:false,
-            message:"unexpected error"
+            success: false,
+            message: "unexpected error"
         })
 
 
 
-    }catch(error){
+    } catch (error) {
         console.log(error);
     }
 
 }
 
+exports.changePasswords = async (req, res) => {
+    const { userId, verified } = req.user;
+    const { oldPassword, newPassword } = req.body;
+    try {
+        const { error, value } = changePasswordSchema.validate({ newPassword, oldPassword })
+        if (error) {
+            return res.status(400).json({
+                success: true,
+                message: error.details[0].message
+            });
+
+        }
+        if (!verified) {
+            return res.status(401).json({
+                success: false,
+                message: 'not verified'
+            })
+        }
+        const exuser = await User.findOne({ _id: userId }).exec().select('password')
+        if (!exuser) {
+            return res.status(400).json({
+                success: false,
+                message: 'no user found'
+            })
+        }
+        const result = await doHashvalidation(oldPassword, exuser.password)
+        if (!result) {
+            return res.status(401).json({
+                success: false,
+                message: 'invalid password'
+            })
+        }
+        const hashpassword = await dohash(newPassword, 12);
+        exuser.password = hashpassword;
+        await exuser.save();
+        return res.status(200).json({
+            success: true,
+            message: 'Password updated'
+        })
+
+
+    } catch (error) {
+        console.log(error);
+    }
+}
 

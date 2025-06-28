@@ -4,12 +4,14 @@ const cors = require('cors');
 const cookieparser = require('cookie-parser');
 const connectDB = require('./config/db');
 const authrouter = require('../auth/routers/api/authRouter');
+const postrouter = require('./routers/api/postsRouter')
 
 connectDB();
 
 const app = express()
 app.use(express.json())
 app.use('/auth',authrouter)
+app.use('/posts',postrouter)
 
 app.use(cors()) // enabling CORS in the application
 app.use(helmet())
