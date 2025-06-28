@@ -6,6 +6,8 @@ exports.getPosts = async (req, res) => {
     const postsPerPage = 10;
     try {
         let pageNum = 0;
+        // making it to 0 based indexing
+        m//mongodb skip() works with zero based index
         if (page <= 1) {
             pageNum = 0
         } else {
